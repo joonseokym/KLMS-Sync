@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+KLMS_JS_DIR="$SCRIPT_DIR/src/js"
+KLMS_SWIFT_DIR="$SCRIPT_DIR/src/swift"
 CONFIG_PATH="$SCRIPT_DIR/config.env"
 QR_IMAGE=""
 QR_JSON=""
@@ -84,13 +86,13 @@ NODE_BIN="$(resolve_node_bin)" || {
 }
 
 if [[ -n "$QR_IMAGE" ]]; then
-  QR_JSON="$(/usr/bin/swift "$SCRIPT_DIR/decode_qr_image.swift" "$QR_IMAGE")"
+  QR_JSON="$(/usr/bin/swift "$KLMS_SWIFT_DIR/decode_qr_image.swift" "$QR_IMAGE")"
 fi
 
 if [[ -n "$QR_JSON_FILE" ]]; then
-  "$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" register --qr-json-file "$QR_JSON_FILE"
+  "$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" register --qr-json-file "$QR_JSON_FILE"
 elif [[ -n "$QR_JSON" ]]; then
-  "$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" register --qr-json "$QR_JSON"
+  "$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" register --qr-json "$QR_JSON"
 else
   print -r -- "usage: ./kaikey_setup.sh --qr-image /path/to/screenshot.png" >&2
   print -r -- "   or: ./kaikey_setup.sh --qr-json-file /path/to/qr.json" >&2

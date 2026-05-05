@@ -4,7 +4,9 @@ set -euo pipefail
 
 PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+KLMS_SH_DIR="$SCRIPT_DIR/src/sh"
+KLMS_JS_DIR="$SCRIPT_DIR/src/js"
 CONFIG_PATH="$SCRIPT_DIR/config.env"
 RUNTIME_DIR="$SCRIPT_DIR/runtime"
 AUTOMATION_DIR="$RUNTIME_DIR/automation"
@@ -97,14 +99,14 @@ start_login_watch_if_needed() {
     return 0
   fi
 
-  nohup /bin/zsh "$SCRIPT_DIR/watch_klms_login_recovery.sh" >/dev/null 2>&1 &
+  nohup /bin/zsh "$KLMS_SH_DIR/watch_klms_login_recovery.sh" >/dev/null 2>&1 &
   timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
   printf '[%s] login-watch spawn pid=%s\n' "$timestamp" "$!" >> "$LAUNCH_LOG"
 }
 
 timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
 if [[ "$MACOS_REMINDER_NOTIFICATIONS_ENABLED" == "1" ]]; then
-  alert_output="$(cd "$SCRIPT_DIR" && osascript -l JavaScript ./notify_klms_reminders.js ./config.env "$ALERT_STATE_FILE" 2>&1)" || true
+  alert_output="$(cd "$SCRIPT_DIR" && osascript -l JavaScript "$KLMS_JS_DIR/notify_klms_reminders.js" ./config.env "$ALERT_STATE_FILE" 2>&1)" || true
   printf '[%s] alerts %s\n' "$timestamp" "$alert_output" >> "$LAUNCH_LOG"
 else
   printf '[%s] alerts status=skipped macos-reminder-notifications-disabled\n' "$timestamp" >> "$LAUNCH_LOG"

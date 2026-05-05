@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+KLMS_JS_DIR="$SCRIPT_DIR/src/js"
 CONFIG_PATH="${1:-$SCRIPT_DIR/config.env}"
 
 if [[ -f "$CONFIG_PATH" ]]; then
@@ -49,17 +50,17 @@ NODE_BIN="$(resolve_node_bin)" || {
   exit 2
 }
 
-"$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" status >/dev/null 2>&1 || {
+"$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" status >/dev/null 2>&1 || {
   print -r -- "status=skipped reason=kaikey-not-registered"
   exit 2
 }
 
-DISPLAY_NAME="$("$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" identity)"
+DISPLAY_NAME="$("$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" identity)"
 deadline_epoch="$(( $(date +%s) + KAIKEY_AUTO_LOGIN_TIMEOUT_SECONDS ))"
 last_status=""
 
 while (( $(date +%s) < deadline_epoch )); do
-  step_json="$(/usr/bin/osascript -l JavaScript "$SCRIPT_DIR/kaikey_safari_step.js" \
+  step_json="$(/usr/bin/osascript -l JavaScript "$KLMS_JS_DIR/kaikey_safari_step.js" \
     "--url=$KLMS_LOGIN_URL" \
     "--display-name=$DISPLAY_NAME" 2>/dev/null || true)"
 
@@ -79,7 +80,7 @@ while (( $(date +%s) < deadline_epoch )); do
     twofactor_digits)
       digits="$(json_get "$step_json" digits 2>/dev/null || true)"
       if [[ "$digits" == <-> && "${#digits}" == "2" ]]; then
-        approve_json="$("$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" approve-if-match \
+        approve_json="$("$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" approve-if-match \
           "--digits=$digits" \
           "--attempts=$KAIKEY_APPROVE_ATTEMPTS" \
           "--interval-ms=$KAIKEY_APPROVE_INTERVAL_MS" 2>/dev/null || true)"

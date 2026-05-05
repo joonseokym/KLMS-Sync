@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-COMMON_SH="$SCRIPT_DIR/klms_common.sh"
+COMMON_SH="$SCRIPT_DIR/src/sh/klms_common.sh"
 source "$COMMON_SH"
 
 klms_init_context "$0" "${1:-}"

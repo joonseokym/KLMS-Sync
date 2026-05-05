@@ -19,8 +19,8 @@ Run these before publishing:
 git status --short
 git status --ignored --short
 git ls-files | rg '(^|/)(config\.env|manual_assignment_overrides\.json|kaikey_state\.json)$|^(runtime|course_files|course_transcripts|course_videos)/'
-git grep -n -E '(/Users/|bwid=[0-9]+|MoodleSession|MOODLEID_|[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})' -- ':!PUBLICATION_CHECKLIST.md'
-git grep -n -E '(학번|주민|전화|서지석|gs36212js)' -- ':!PUBLICATION_CHECKLIST.md'
+git grep -n -E '(/Users/|bwid=[0-9]+|MoodleSession|MOODLEID_|[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})' -- ':!docs/publication-checklist.md'
+git grep -n -E '(학번|주민|전화|서지석|gs36212js)' -- ':!docs/publication-checklist.md'
 ```
 
 The first command should show only intentional source/documentation changes. The ignored status may show local private files, but those files must not appear in `git status --short` as tracked or untracked commit candidates.
@@ -31,12 +31,13 @@ Run syntax checks and focused tests:
 
 ```sh
 python3 -m unittest discover -s tests
-node --check kaikey_cli.mjs
-node --check sync_klms_notes.js
-node --check download_klms_files.js
-node --check export_panopto_transcripts.js
-zsh -n *.sh
-swiftc -typecheck decode_qr_image.swift
+node --check src/js/kaikey_cli.mjs
+node --check src/js/sync_klms_notes.js
+node --check src/js/download_klms_files.js
+node --check src/js/export_panopto_transcripts.js
+zsh -n *.sh src/sh/*.sh
+swiftc -typecheck src/swift/decode_qr_image.swift
+swiftc -typecheck src/swift/notice_native_note_support.swift src/swift/update_notice_native_note.swift
 ```
 
 Some runtime checks need Safari, macOS Automation permissions, Reminders, Calendar, Notes, and an active KLMS session. Do not record or publish outputs containing course pages or account data.

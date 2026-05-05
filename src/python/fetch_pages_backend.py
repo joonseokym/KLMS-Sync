@@ -29,6 +29,10 @@ DEFAULT_CACHE_STATE = {"version": 1, "contexts": {}}
 DEFAULT_SAFARI_FETCH_LOCK = Path("/tmp/klms-safari-fetch.lock")
 
 
+def project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
 def page_has_usable_html(page: dict[str, Any]) -> bool:
     return bool(str(page.get("html") or "").strip())
 
@@ -114,7 +118,7 @@ def main() -> int:
             wait_seconds=args.wait,
             min_wait_seconds=args.min_wait,
             stable_polls=args.stable_polls,
-            script_dir=Path(__file__).resolve().parent,
+            script_dir=project_root(),
             telemetry_context=f"{context_key}:selected",
         )
         fetched_lookup = build_fetched_lookup(fetched_pages, previous_lookup, allow_login_pages=args.allow_login_pages)
@@ -139,7 +143,7 @@ def main() -> int:
             wait_seconds=args.wait,
             min_wait_seconds=args.min_wait,
             stable_polls=args.stable_polls,
-            script_dir=Path(__file__).resolve().parent,
+            script_dir=project_root(),
             telemetry_context=f"{context_key}:missing",
         )
         missing_lookup = build_fetched_lookup(missing_pages, previous_lookup, allow_login_pages=args.allow_login_pages)
@@ -467,7 +471,7 @@ def fetch_pages_with_safari(
                 "/usr/bin/osascript",
                 "-l",
                 "JavaScript",
-                str((script_dir / "fetch_pages_with_safari.js").resolve()),
+                str((script_dir / "src/js/fetch_pages_with_safari.js").resolve()),
                 f"--wait={attempt_wait_seconds}",
                 f"--min-wait={attempt_min_wait_seconds}",
                 f"--stable-polls={attempt_stable_polls}",

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-COMMON_SH="$(cd "$(dirname "$0")" && pwd)/klms_common.sh"
+COMMON_SH="$(cd "$(dirname "$0")" && pwd)/src/sh/klms_common.sh"
 source "$COMMON_SH"
 
 klms_init_context "$0" "${1:-}"
@@ -240,7 +240,7 @@ EOF
   local argv=(
     /usr/bin/env
     python3
-    "$SCRIPT_DIR/fetch_pages_backend.py"
+    "$KLMS_PYTHON_DIR/fetch_pages_backend.py"
     "--backend=safari"
     "--mode=$mode"
     "--context=$context"
@@ -517,7 +517,7 @@ build_linked_html_index() {
 
   local argv=(
     python3
-    ./klms_sync.py
+    "$KLMS_PYTHON_DIR/klms_sync.py"
     build-linked-html-index
     --pages-json "$pages_json"
     --output-index-json "$output_index_json"
@@ -561,7 +561,7 @@ klms_check_login_pages \
   "$DASHBOARD_JSON" \
   "KLMS login required before file refresh. Open Safari and sign in again."
 
-python3 ./klms_sync.py list-course-urls --dashboard-json "$DASHBOARD_JSON" > "$COURSE_URLS_TXT"
+python3 "$KLMS_PYTHON_DIR/klms_sync.py" list-course-urls --dashboard-json "$DASHBOARD_JSON" > "$COURSE_URLS_TXT"
 run_fetch_backend \
   "files-course-pages" \
   "$COURSE_PAGES_JSON" \
@@ -586,7 +586,7 @@ run_fetch_backend \
   "$FILE_FULL_TTL_SECONDS" \
   "$FILE_ALL_WEEK_COURSE_FETCH_SUMMARY_JSON"
 
-python3 ./klms_sync.py list-supplemental-urls \
+python3 "$KLMS_PYTHON_DIR/klms_sync.py" list-supplemental-urls \
   --course-pages-json "$ALL_WEEK_COURSE_PAGES_JSON" \
   --tier=primary \
   > "$FILE_PRIMARY_SUPPLEMENTAL_URLS_TXT"
@@ -616,7 +616,7 @@ elif [[ "$COURSE_CHANGED_COUNT" == "0" && "$ALL_WEEK_COURSE_CHANGED_COUNT" == "0
   log_files_timing "seed always-fetch retained reason=shared-supplemental-primary-not-fresh run_started=${KLMS_RUN_STARTED_EPOCH:-missing} shared_primary_mtime=$shared_primary_mtime"
 fi
 
-python3 ./klms_sync.py list-file-seed-urls --course-pages-json "$ALL_WEEK_COURSE_PAGES_JSON" > "$FILE_SEED_URLS_TXT"
+python3 "$KLMS_PYTHON_DIR/klms_sync.py" list-file-seed-urls --course-pages-json "$ALL_WEEK_COURSE_PAGES_JSON" > "$FILE_SEED_URLS_TXT"
 run_fetch_backend \
   "files-seed-pages" \
   "$FILE_SEED_PAGES_JSON" \
@@ -746,7 +746,7 @@ if [[ -s "$MANIFEST_JSON" \
 else
   log_files_timing "manifest build start"
   manifest_started_epoch="$(date +%s)"
-  python3 ./build_course_file_manifest.py \
+  python3 "$KLMS_PYTHON_DIR/build_course_file_manifest.py" \
     --course-pages-json "$ALL_WEEK_COURSE_PAGES_JSON" \
     --pages-json "$FILE_SEED_PAGES_JSON" \
     --pages-json "$FILE_NESTED_PAGES_JSON" \
@@ -813,8 +813,8 @@ if ! is_truthy "$FILE_FORCE_DOWNLOAD" \
     "$HOME/Downloads/KLMS Files"; then
   log_files_timing "download skipped existing_complete=1 duration_s=$(($(date +%s) - download_started_epoch))"
 else
-  /bin/zsh "$SCRIPT_DIR/run_download_files_step.sh" \
-    "$SCRIPT_DIR/download_klms_files.js" \
+  /bin/zsh "$KLMS_SH_DIR/run_download_files_step.sh" \
+    "$KLMS_JS_DIR/download_klms_files.js" \
     "$MANIFEST_JSON" \
     "$OUTPUT_ROOT" \
     "$DOWNLOAD_LOG_JSON" \
@@ -849,7 +849,7 @@ fi
 
 log_files_timing "prune start"
 prune_started_epoch="$(date +%s)"
-python3 ./prune_course_files.py \
+python3 "$KLMS_PYTHON_DIR/prune_course_files.py" \
   --manifest-json "$MANIFEST_JSON" \
   --root "$OUTPUT_ROOT" \
   > "$PRUNE_RESULT_JSON"
@@ -859,7 +859,7 @@ cleanup_args=(
   /usr/bin/osascript
   -l
   JavaScript
-  "$SCRIPT_DIR/cleanup_tracked_downloads.js"
+  "$KLMS_JS_DIR/cleanup_tracked_downloads.js"
   "--manifest=$DOWNLOAD_LOG_JSON"
 )
 case "${FILE_KEEP_FRESH_DOWNLOADS:l}" in

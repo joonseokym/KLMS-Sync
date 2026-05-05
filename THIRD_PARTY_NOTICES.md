@@ -2,7 +2,7 @@
 
 ## Kaikey Extension
 
-`kaikey_cli.mjs` adapts protocol code from `predict-woo/kaikey-extension`.
+`src/js/kaikey_cli.mjs` adapts protocol code from `predict-woo/kaikey-extension`.
 
 - Source: https://github.com/predict-woo/kaikey-extension
 - License: MIT

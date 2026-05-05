@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+KLMS_JS_DIR="$SCRIPT_DIR/src/js"
 CONFIG_PATH="${CONFIG_PATH:-$SCRIPT_DIR/config.env}"
 
 if [[ -f "$CONFIG_PATH" ]]; then
@@ -65,4 +66,4 @@ NODE_BIN="$(resolve_node_bin)" || {
   exit 1
 }
 
-"$NODE_BIN" "$SCRIPT_DIR/kaikey_cli.mjs" approve-number "--number=$number"
+"$NODE_BIN" "$KLMS_JS_DIR/kaikey_cli.mjs" approve-number "--number=$number"

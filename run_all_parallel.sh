@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-COMMON_SH="$(cd "$(dirname "$0")" && pwd)/klms_common.sh"
+COMMON_SH="$(cd "$(dirname "$0")" && pwd)/src/sh/klms_common.sh"
 source "$COMMON_SH"
 
 klms_init_context "$0" "${1:-}"
@@ -91,5 +91,5 @@ fi
 if [[ "${KLMS_RUNTIME_TMP_CLEANUP_ENABLED:-1}" == "1" ]]; then
   max_age_hours="${KLMS_RUNTIME_TMP_MAX_AGE_HOURS:-24}"
   KLMS_RUNTIME_TMP_CLEANUP_TARGET="$TMP_ROOT_DIR" \
-    /bin/zsh "$SCRIPT_DIR/cleanup_runtime_tmp.sh" --max-age-hours "$max_age_hours" >/dev/null 2>&1 || true
+    /bin/zsh "$KLMS_SH_DIR/cleanup_runtime_tmp.sh" --max-age-hours "$max_age_hours" >/dev/null 2>&1 || true
 fi

@@ -423,7 +423,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-course-urls",
         "--dashboard-json",
         dashboardJson,
@@ -475,7 +475,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-supplemental-urls",
         "--course-pages-json",
         coursePagesJson,
@@ -495,7 +495,7 @@ function run(argv) {
         [
           "/usr/bin/env",
           "python3",
-          `${scriptDir}/klms_sync.py`,
+          `${scriptDir}/src/python/klms_sync.py`,
           "list-supplemental-urls",
           "--course-pages-json",
           allWeekCoursePagesJson,
@@ -538,7 +538,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-supplemental-urls",
         "--course-pages-json",
         coursePagesJson,
@@ -558,7 +558,7 @@ function run(argv) {
         [
           "/usr/bin/env",
           "python3",
-          `${scriptDir}/klms_sync.py`,
+          `${scriptDir}/src/python/klms_sync.py`,
           "list-supplemental-urls",
           "--course-pages-json",
           allWeekCoursePagesJson,
@@ -612,7 +612,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-detail-urls",
         "--dashboard-json",
         dashboardJson,
@@ -654,7 +654,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-supplemental-detail-urls",
         "--supplemental-pages-json",
         supplementalPagesJson,
@@ -719,7 +719,7 @@ function run(argv) {
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "build-note",
         "--dashboard-json",
         dashboardJson,
@@ -1158,7 +1158,7 @@ function runStandaloneNoticeSummary(
     [
       "/usr/bin/env",
       "python3",
-      `${scriptDir}/klms_sync.py`,
+      `${scriptDir}/src/python/klms_sync.py`,
       "list-course-urls",
       "--dashboard-json",
       paths.dashboardJson,
@@ -1212,7 +1212,7 @@ function runStandaloneNoticeSummary(
     [
       "/usr/bin/env",
       "python3",
-      `${scriptDir}/klms_sync.py`,
+      `${scriptDir}/src/python/klms_sync.py`,
       "list-supplemental-urls",
       "--course-pages-json",
       paths.coursePagesJson,
@@ -1231,7 +1231,7 @@ function runStandaloneNoticeSummary(
       [
         "/usr/bin/env",
         "python3",
-        `${scriptDir}/klms_sync.py`,
+        `${scriptDir}/src/python/klms_sync.py`,
         "list-supplemental-urls",
         "--course-pages-json",
         paths.allWeekCoursePagesJson,
@@ -1275,7 +1275,7 @@ function runStandaloneNoticeSummary(
     [
       "/usr/bin/env",
       "python3",
-      `${scriptDir}/klms_sync.py`,
+      `${scriptDir}/src/python/klms_sync.py`,
       "list-notice-board-page-urls",
       "--supplemental-primary-pages-json",
       paths.supplementalPrimaryPagesJson,
@@ -1361,7 +1361,7 @@ function syncNoticeSummary(scriptDir, waitSeconds, baseFetchOptions, paths, stag
         [
           "/usr/bin/env",
           "python3",
-          `${scriptDir}/klms_sync.py`,
+          `${scriptDir}/src/python/klms_sync.py`,
           "list-notice-article-urls",
           "--supplemental-primary-pages-json",
           paths.supplementalPrimaryPagesJson,
@@ -1436,7 +1436,7 @@ function syncNoticeSummary(scriptDir, waitSeconds, baseFetchOptions, paths, stag
         [
           "/usr/bin/env",
           "python3",
-          `${scriptDir}/klms_sync.py`,
+          `${scriptDir}/src/python/klms_sync.py`,
           "build-notice-digest",
           "--notice-board-state-json",
           noticeBoardStateForDigest,
@@ -1544,11 +1544,11 @@ function updateNoticeNativeNote(
   const captureArgs = ["--capture-only", ...commonArgs];
   const captureCommand =
     alwaysCaptureStateEnabled === false
-      ? [`${scriptDir}/update_notice_native_note.sh`, ...captureArgs]
+      ? [`${scriptDir}/src/sh/update_notice_native_note.sh`, ...captureArgs]
       : [
           "/usr/bin/env",
           "NOTICE_CAPTURE_STABLE_WITH_UI=1",
-          `${scriptDir}/update_notice_native_note.sh`,
+          `${scriptDir}/src/sh/update_notice_native_note.sh`,
           ...captureArgs,
         ];
   const targets = [
@@ -1615,7 +1615,7 @@ function updateNoticeNativeNote(
         () =>
           runCommand(
             [
-              `${scriptDir}/update_notice_native_note.sh`,
+              `${scriptDir}/src/sh/update_notice_native_note.sh`,
               ...target.args,
               ...commonArgs,
             ],
@@ -1826,7 +1826,7 @@ function fetchPages(urls, waitSeconds, scriptDir, options) {
   const command = [
     "/usr/bin/env",
     "python3",
-    `${scriptDir}/fetch_pages_backend.py`,
+    `${scriptDir}/src/python/fetch_pages_backend.py`,
     `--backend=${(options && options.backend) || "safari"}`,
     `--mode=${(options && options.mode) || "auto"}`,
     `--context=${context}`,
@@ -1877,7 +1877,7 @@ function syncCalendarsFromState(stateJsonPath, scriptDir, config, calendarOption
   const lookbackDays = String(config.CALENDAR_LOOKBACK_DAYS || "365");
   const command = [
     "/usr/bin/swift",
-    `${scriptDir}/sync_klms_calendar_suite.swift`,
+    `${scriptDir}/src/swift/sync_klms_calendar_suite.swift`,
     stateJsonPath,
     `--duration-minutes=${durationMinutes}`,
     `--lookback-days=${lookbackDays}`,
@@ -1906,7 +1906,7 @@ function syncCalendarsFromState(stateJsonPath, scriptDir, config, calendarOption
         "/usr/bin/osascript",
         "-l",
         "JavaScript",
-        `${scriptDir}/sync_klms_calendar_jxa.js`,
+        `${scriptDir}/src/js/sync_klms_calendar_jxa.js`,
         stateJsonPath,
         `--duration-minutes=${durationMinutes}`,
         `--lookback-days=${lookbackDays}`,
@@ -3045,7 +3045,14 @@ function scriptDirectory() {
   for (let i = args.length - 1; i >= 0; i -= 1) {
     const value = String(args[i] || "");
     if (value.endsWith(".js")) {
-      return ObjC.unwrap($(value).stringByDeletingLastPathComponent);
+      const sourceDir = ObjC.unwrap($(value).stringByDeletingLastPathComponent);
+      if (sourceDir === "src/js") {
+        return currentDirectory();
+      }
+      if (sourceDir.endsWith("/src/js")) {
+        return sourceDir.slice(0, -"/src/js".length);
+      }
+      return sourceDir;
     }
   }
   return currentDirectory();

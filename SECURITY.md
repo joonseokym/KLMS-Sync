@@ -16,7 +16,7 @@ The repository intentionally ignores:
 - `launchd/*.plist`
 - QR screenshots, cookies, logs, and local caches
 
-`config.env.example` and `manual_assignment_overrides.example.json` are safe templates. Real local values should stay outside git.
+`examples/config.env.example` and `examples/manual_assignment_overrides.example.json` are safe templates. Real local values should stay outside git.
 
 ## Kaikey/MFA Automation
 

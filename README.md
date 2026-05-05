@@ -18,30 +18,32 @@ Kaikey 자동 인증을 켜면 Mac에 저장되는 기기키가 사실상 KAIST 
 
 ## 구성
 
+루트에는 사용자가 직접 실행하는 entrypoint만 둔다.
+
 - `sync_klms_core.sh`: 사용자용 `KLMS 동기화` entrypoint. 과제/시험/Reminders/Calendar/과제 메모를 갱신
 - `sync_klms_notice.sh`: 사용자용 `공지 정리` entrypoint. `KLMS 공지` 메모만 갱신
+- `refresh_course_files.sh`: 첨부파일 manifest 생성, 다운로드, prune을 담당하는 `파일 정리` entrypoint
 - `run_all.sh`: `KLMS 동기화 + 공지 정리`만 안정성 우선으로 직렬 실행하는 기본 entrypoint
 - `run_all_full.sh`: `KLMS 동기화 + 공지 정리 + 파일 정리`를 안정성 우선으로 직렬 실행하는 full entrypoint
 - `run_all_parallel.sh`: 같은 세 작업을 로그인 preflight 뒤 병렬 실행하는 수동 실험용 entrypoint
 - `sync_klms_all.sh`: generic sync wrapper. 대화형 실행에서는 어떤 동기화를 원하는지 먼저 물어보고, 비대화 실행에서는 기존처럼 기본 `run_all.sh`로 떨어진다
-- `cleanup_runtime_tmp.sh`: `runtime/tmp` 아래의 테스트/모듈 캐시/임시 URL 목록 파일을 정리하는 보조 스크립트. `--max-age-hours`로 오래된 tmp를 TTL 기반으로 같이 정리할 수 있다.
-- `klms_common.sh`: 공통 config 로딩, 로그인 preflight, 짧은 로그인 성공 캐시를 담당하는 shell helper
-- `sync_klms_notes.js`: 내부 공용 runner. `--scope=core|notice|all`로 동작 범위를 나눈다
-- `sync_klms_calendar.swift`: 필요할 때 KLMS 시험/헬프데스크 일정을 Apple Calendar 이벤트로 동기화하거나 정리
-- `sync_klms_calendar_suite.swift`: 메인 sync에서 시험/헬프데스크 Calendar 동기화를 한 번의 Swift 실행으로 묶는 통합 스크립트
+- `kaikey_setup.sh`, `kaikey_auto_login.sh`, `kaikey_approve_number.sh`: Kaikey 등록/자동 로그인/숫자 승인 helper
+- `install_launch_agent.sh`: 자동 실행용 LaunchAgent 설치
 - `verify_sync_state.sh`: 공지 렌더 누락, 파일 manifest 누락, 캘린더 개수까지 한 번에 점검하는 검증 스크립트
-- `notify_klms_reminders.js`: 필요할 때 리마인더 마감을 읽어 여러 단계의 macOS 알림을 띄움
-- `fetch_pages_with_safari.js`: Safari로 KLMS 페이지 HTML 수집
-- `fetch_pages_backend.py`: 증분 캐시 / quick/full 모드 / Safari 수집 래퍼
-- `build_course_file_manifest.py`: 현재 수강 강좌 페이지/게시판에서 첨부파일 manifest를 만들고 과목별 상대 경로를 계산
-- `download_klms_files.js`: Safari 세션으로 KLMS 첨부를 내려받아 과목별 폴더에 복사하고, 다운로드 사본도 `~/Downloads/KLMS Files/<과목>/...` 아래에 과목별로 남긴다
-- `cleanup_tracked_downloads.js`: 문서 스캔 뒤 manifest에 기록된 다운로드 파일만 안전하게 정리
-- `klms_sync.py`: 과제 파싱, 공지/자료실 기반 시험 일정 추출, 변경 감지, 메모용 HTML 생성
+
+내부 구현은 기능과 언어별로 분리한다.
+
+- `src/sh/`: 공통 shell helper, launchd worker, tmp cleanup, native Notes renderer wrapper
+- `src/js/`: Safari/JXA 자동화, Reminders/Notes 동기화 runner, Kaikey protocol CLI
+- `src/python/`: KLMS HTML 파서, 증분 fetch backend, 파일 manifest/prune 도구
+- `src/swift/`: Calendar 동기화, QR decode, native Notes renderer
+- `examples/`: 공개 가능한 예시 설정 파일
+- `docs/`: 공개 배포 체크리스트 등 보조 문서
 - `legacy/`: 호환 wrapper와 수동 디버깅용 보조 스크립트
 
 ## 준비
 
-1. `config.env.example`를 `config.env`로 복사한다.
+1. `examples/config.env.example`를 `config.env`로 복사한다.
 2. Safari에서 `https://klms.kaist.ac.kr/my/`에 로그인되어 있어야 한다.
 3. 첫 실행 때 macOS가 Safari / Reminders / Calendar 자동화 권한을 물으면 허용한다.
 
@@ -104,7 +106,7 @@ cd klms-notes-sync
 
 ```sh
 cd klms-notes-sync
-./cleanup_runtime_tmp.sh
+./src/sh/cleanup_runtime_tmp.sh
 ```
 
 자동 sync entrypoint(`sync_klms_core.sh`, `sync_klms_notice.sh`, `run_all.sh`, `run_all_full.sh`)는 성공 후 `runtime/tmp`를 자동 정리한다. 기본값은 `24시간`보다 오래된 tmp를 비우는 방식이고, `KLMS_RUNTIME_TMP_CLEANUP_ENABLED=0`으로 끄거나 `KLMS_RUNTIME_TMP_MAX_AGE_HOURS`로 기준 시간을 바꿀 수 있다.
@@ -125,7 +127,7 @@ cd klms-notes-sync
 등록 상태는 아래처럼 확인한다.
 
 ```sh
-./kaikey_cli.mjs status
+node ./src/js/kaikey_cli.mjs status
 ```
 
 기본 기기키 저장 위치는 `~/Library/Application Support/KLMSNotesSync/kaikey_state.json`이고 권한은 `0600`으로 맞춘다. 경로를 바꾸려면 `KAIKEY_STATE_PATH`를 설정한다. launchd 설치본에서 Homebrew Node를 못 찾으면 `KAIKEY_NODE_BIN=/opt/homebrew/bin/node`처럼 지정한다.
@@ -201,21 +203,21 @@ Safari 수집은 `FETCH_MIN_WAIT_SECONDS`, `FETCH_STABLE_POLLS`를 써서 DOM이
 - 사용자가 Apple Reminders의 `KLMS 과제` 또는 `KLMS 확인 필요` 목록에서 과제를 직접 완료 체크하면, 다음 동기화 때 해당 과제 URL이 수동 override `completed`로 저장되고 이후 과제 목록에 다시 나타나지 않는다.
 - 완료 체크되었거나 KLMS에서 완료 처리된 과제의 리마인더와 단계 알림은 다음 동기화에서 바로 삭제한다.
 - `COMPLETED_REMINDER_RETENTION_DAYS`는 기본값 `0`이며, 과제 외의 완료 리마인더를 따로 보존하고 싶을 때만 쓴다.
-- KLMS에 제출 완료가 안 찍히는 예외 과제는 `manual_assignment_overrides.json`의 `assignments` 아래에 과제 URL을 키로 넣고 값을 `completed`로 두면 수동으로 숨길 수 있다. 파일 형식은 [manual_assignment_overrides.example.json](./manual_assignment_overrides.example.json)을 참고한다.
+- KLMS에 제출 완료가 안 찍히는 예외 과제는 `manual_assignment_overrides.json`의 `assignments` 아래에 과제 URL을 키로 넣고 값을 `completed`로 두면 수동으로 숨길 수 있다. 파일 형식은 [examples/manual_assignment_overrides.example.json](./examples/manual_assignment_overrides.example.json)을 참고한다.
 - 완전히 무시만 하고 싶으면 같은 파일에서 값을 `ignored`로 두면 된다.
 - 같은 파일의 `exams` 아래에는 시험 공지 URL이나 `URL::시험명` 키로 수동 시험 시간 override를 넣을 수 있다. `status: approved`를 둔 항목만 실제 시험 일정으로 반영되고, `sync_start`, `sync_due`, `due`를 함께 넣으면 캘린더도 명시된 시작/종료 시각으로 생성된다.
 - LaunchAgent 설치본과 작업 폴더가 다른 경로를 써도 같은 override 파일을 보게 하려면 `config.env`의 `OVERRIDES_JSON_PATH`를 절대 경로로 지정하면 된다.
 
 ## 다운로드 정리 안전장치
 
-- 문서 스캔 때문에 `~/Downloads`를 잠깐 사용할 때는 다운로드 목록 manifest를 먼저 만든 뒤 [cleanup_tracked_downloads.js](./cleanup_tracked_downloads.js)로 정리한다.
+- 문서 스캔 때문에 `~/Downloads`를 잠깐 사용할 때는 다운로드 목록 manifest를 먼저 만든 뒤 [src/js/cleanup_tracked_downloads.js](./src/js/cleanup_tracked_downloads.js)로 정리한다.
 - 이 스크립트는 manifest에 적힌 파일명만 대상으로 삼고, `~/Downloads` 전체를 비우거나 manifest 밖의 파일을 지우지 않는다.
 - 자동 삭제는 하지 않는다. 다운로드 후 남겨둔 사본은 사용자가 cleanup 명령을 직접 실행할 때만 지운다.
-- 실행 예시는 `osascript -l JavaScript ./cleanup_tracked_downloads.js --manifest=./runtime/tmp/file_scan_manifest.json` 형태다.
+- 실행 예시는 `osascript -l JavaScript ./src/js/cleanup_tracked_downloads.js --manifest=./runtime/tmp/file_scan_manifest.json` 형태다.
 
 ## 과목별 파일 정리
 
-- 현재 수강 강좌의 첨부파일을 과목별 폴더로 모으려면 `build_course_file_manifest.py`로 manifest를 만들고 `download_klms_files.js`로 내려받는다.
+- 현재 수강 강좌의 첨부파일을 과목별 폴더로 모으려면 내부적으로 `src/python/build_course_file_manifest.py`로 manifest를 만들고 `src/js/download_klms_files.js`로 내려받는다.
 - 생성된 file manifest와 download log에는 KLMS 화면에서 읽은 기준 시각(`klms_timestamp*`)과 로컬에 확보한 시각(`local_downloaded_*`)을 함께 저장한다.
 - 파일 정리 단계는 `course_files` 정리본과 `~/Downloads/KLMS Files` 보관 사본의 파일 수정 시각(`mtime`)도 가능하면 같은 KLMS 기준 시각으로 맞춘다. 그래서 Finder/정렬 기준이 로그와 더 일관되게 보인다.
 - 파일명은 가능하면 KLMS가 실제로 내려준 다운로드 파일명을 그대로 유지하고, 이후 manifest/state도 그 이름으로 맞춘다.
@@ -235,9 +237,9 @@ Safari 수집은 `FETCH_MIN_WAIT_SECONDS`, `FETCH_STABLE_POLLS`를 써서 DOM이
 - nested HTML은 새로 발견된 URL을 우선 다시 읽고, 필요하면 `FILE_NESTED_BACKGROUND_QUICK_LIMIT`, `FILE_NESTED2_BACKGROUND_QUICK_LIMIT`를 올려 기존 URL background probe를 다시 늘릴 수 있다.
 - 로그인 만료로 dashboard가 SSO 페이지를 돌려주면 file refresh는 바로 중단된다.
 - generated manifest가 기존 정리본보다 비정상적으로 줄어들거나 비었는데 기존 정리 파일이 남아 있으면, file refresh는 먼저 한 번 full rebuild를 다시 시도한 뒤에만 prune 단계로 넘어간다.
-- 기존 파일이 있어도 KLMS에서 전부 다시 받으려면 `download_klms_files.js` 실행 시 `--force-download`를 추가한다.
-- 과목별 다운로드 뒤 `~/Downloads`의 추적 파일을 전부 정리하려면 `osascript -l JavaScript ./cleanup_tracked_downloads.js --manifest=./runtime/cache/course_file_download_log.json`처럼 직접 실행한다.
-- 새로 받은 파일만 남기고 싶으면 `osascript -l JavaScript ./cleanup_tracked_downloads.js --manifest=./runtime/cache/course_file_download_log.json --keep-fresh-downloads`를 쓰거나, 자동 파일 동기화 기본값인 `FILE_KEEP_FRESH_DOWNLOADS=1`을 유지한다.
+- 기존 파일이 있어도 KLMS에서 전부 다시 받으려면 `refresh_course_files.sh` 실행 시 `FILE_FORCE_DOWNLOAD=1`을 설정한다.
+- 과목별 다운로드 뒤 `~/Downloads`의 추적 파일을 전부 정리하려면 `osascript -l JavaScript ./src/js/cleanup_tracked_downloads.js --manifest=./runtime/cache/course_file_download_log.json`처럼 직접 실행한다.
+- 새로 받은 파일만 남기고 싶으면 `osascript -l JavaScript ./src/js/cleanup_tracked_downloads.js --manifest=./runtime/cache/course_file_download_log.json --keep-fresh-downloads`를 쓰거나, 자동 파일 동기화 기본값인 `FILE_KEEP_FRESH_DOWNLOADS=1`을 유지한다.
 
 ## 메모 동작 방식
 
@@ -253,7 +255,7 @@ Safari 수집은 `FETCH_MIN_WAIT_SECONDS`, `FETCH_STABLE_POLLS`를 써서 DOM이
 - `Nano Quiz` 같은 일반 퀴즈는 시험 캘린더로 보내지 않는다. 승인된 시험 일정만 시험 캘린더에 들어간다.
 - 각 일정은 처음 확인한 시점부터 마감 시각까지 이어지는 이벤트로 잡힌다.
 - `2026.03.17~2026.03.21`처럼 기간만 있는 항목은 마지막 날 `23:59` 마감으로 해석해 캘린더에 넣는다.
-- 캘린더 정리만 필요할 때는 `swift ./sync_klms_calendar.swift --clear "시험"`처럼 관리 대상 일정만 비우거나 `--delete-calendar`로 캘린더 자체를 삭제할 수 있다.
+- 캘린더 정리만 필요할 때는 `swift ./src/swift/sync_klms_calendar.swift --clear "시험"`처럼 관리 대상 일정만 비우거나 `--delete-calendar`로 캘린더 자체를 삭제할 수 있다.
 - 검증은 `zsh ./verify_sync_state.sh` 한 번으로 공지/파일/캘린더 상태를 함께 확인할 수 있다.
 - `남은 시간`처럼 매 실행마다 바뀌는 값은 일부러 제외해서, 실제 과제 내용이 바뀔 때만 메모를 갱신한다.
 - Safari에서 읽은 큰 HTML은 스크립트가 직접 JSON 파일로 저장해서, 표준 출력 크기 때문에 동기화가 흔들리지 않게 했다.
@@ -277,6 +279,6 @@ Safari 수집은 `FETCH_MIN_WAIT_SECONDS`, `FETCH_STABLE_POLLS`를 써서 DOM이
 
 ## 공개 배포
 
-GitHub에 공개하기 전에는 [PUBLICATION_CHECKLIST.md](./PUBLICATION_CHECKLIST.md)를 끝까지 확인한다. 특히 `git status --ignored --short`와 추적 파일 대상 문자열 검색으로 로컬 설정, 인증 state, 수업 파일, 개인 식별 정보가 커밋 대상에 들어가지 않았는지 확인한다.
+GitHub에 공개하기 전에는 [docs/publication-checklist.md](./docs/publication-checklist.md)를 끝까지 확인한다. 특히 `git status --ignored --short`와 추적 파일 대상 문자열 검색으로 로컬 설정, 인증 state, 수업 파일, 개인 식별 정보가 커밋 대상에 들어가지 않았는지 확인한다.
 
 라이선스는 [MIT](./LICENSE)이며, Kaikey 프로토콜 구현에서 참고한 외부 코드 고지는 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)에 둔다.

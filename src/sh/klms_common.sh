@@ -30,6 +30,11 @@ klms_init_context() {
   local lock_name=""
 
   SCRIPT_DIR="$(cd "$(dirname "$entry_path")" && pwd)"
+  KLMS_SRC_DIR="$SCRIPT_DIR/src"
+  KLMS_SH_DIR="$KLMS_SRC_DIR/sh"
+  KLMS_JS_DIR="$KLMS_SRC_DIR/js"
+  KLMS_PYTHON_DIR="$KLMS_SRC_DIR/python"
+  KLMS_SWIFT_DIR="$KLMS_SRC_DIR/swift"
   CONFIG_PATH="${config_path:-$SCRIPT_DIR/config.env}"
 
   if [[ -f "$CONFIG_PATH" ]]; then
@@ -78,11 +83,13 @@ klms_init_context() {
   KLMS_SHARED_SYNC_LOCK_WAIT_SECONDS="${KLMS_SHARED_SYNC_LOCK_WAIT_SECONDS:-900}"
   KLMS_LOGIN_PREFETCH_READY=0
   KLMS_LAST_LOGIN_ERROR_MESSAGE=""
+  export KLMS_SRC_DIR KLMS_SH_DIR KLMS_JS_DIR KLMS_PYTHON_DIR KLMS_SWIFT_DIR
 }
 
 klms_configure_python_runtime() {
   local python_bin="${KLMS_PYTHON_BIN:-}"
   local python_packages_dir="${KLMS_PYTHONPATH_DIR:-$RUNTIME_DIR/python-packages}"
+  local joined_pythonpath=""
 
   if [[ -n "$python_bin" ]]; then
     if [[ -x "$python_bin" ]]; then
@@ -93,11 +100,23 @@ klms_configure_python_runtime() {
     fi
   fi
 
-  if [[ -d "$python_packages_dir" ]]; then
+  local python_path_parts=()
+  [[ -d "${KLMS_PYTHON_DIR:-}" ]] && python_path_parts+=("$KLMS_PYTHON_DIR")
+  [[ -d "$python_packages_dir" ]] && python_path_parts+=("$python_packages_dir")
+
+  if (( ${#python_path_parts[@]} > 0 )); then
+    local part
+    for part in "${python_path_parts[@]}"; do
+      if [[ -z "$joined_pythonpath" ]]; then
+        joined_pythonpath="$part"
+      else
+        joined_pythonpath="$joined_pythonpath:$part"
+      fi
+    done
     if [[ -n "${PYTHONPATH:-}" ]]; then
-      PYTHONPATH="$python_packages_dir:$PYTHONPATH"
+      PYTHONPATH="$joined_pythonpath:$PYTHONPATH"
     else
-      PYTHONPATH="$python_packages_dir"
+      PYTHONPATH="$joined_pythonpath"
     fi
     export PYTHONPATH
   fi
@@ -254,7 +273,7 @@ klms_fast_tab_login_state() {
   fi
 
   local tabs_json
-  tabs_json="$(cd "$SCRIPT_DIR" && /usr/bin/osascript -l JavaScript ./inspect_klms_tabs.js 2>/dev/null)" || {
+  tabs_json="$(cd "$SCRIPT_DIR" && /usr/bin/osascript -l JavaScript "$KLMS_JS_DIR/inspect_klms_tabs.js" 2>/dev/null)" || {
     print -r -- "unknown"
     return 0
   }
@@ -303,7 +322,7 @@ klms_check_login_pages() {
   local report_failure="${3:-1}"
   local status_json login_result message
 
-  status_json="$(cd "$SCRIPT_DIR" && /usr/bin/env python3 "$SCRIPT_DIR/klms_sync.py" check-login-status --pages-json "$pages_json")"
+  status_json="$(cd "$SCRIPT_DIR" && /usr/bin/env python3 "$KLMS_PYTHON_DIR/klms_sync.py" check-login-status --pages-json "$pages_json")"
   login_result="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","error"))' <<< "$status_json")"
 
   if [[ "$login_result" == "ok" ]]; then
@@ -348,7 +367,7 @@ klms_require_login() {
   printf '%s\n' "$KLMS_DASHBOARD_URL" > "$url_file"
   (
     cd "$SCRIPT_DIR"
-    /usr/bin/env python3 "$SCRIPT_DIR/fetch_pages_backend.py" \
+    /usr/bin/env python3 "$KLMS_PYTHON_DIR/fetch_pages_backend.py" \
       --backend=safari \
       --mode=full \
       --context=klms-login-preflight \
@@ -366,7 +385,7 @@ klms_require_login() {
     if klms_try_kaikey_auto_login; then
       (
         cd "$SCRIPT_DIR"
-        /usr/bin/env python3 "$SCRIPT_DIR/fetch_pages_backend.py" \
+        /usr/bin/env python3 "$KLMS_PYTHON_DIR/fetch_pages_backend.py" \
           --backend=safari \
           --mode=full \
           --context=klms-login-preflight \
@@ -398,7 +417,7 @@ klms_run_sync_scope() {
   fi
 
   /usr/bin/osascript -l JavaScript \
-    "$SCRIPT_DIR/sync_klms_notes.js" \
+    "$KLMS_JS_DIR/sync_klms_notes.js" \
     "$CONFIG_PATH" \
     "--scope=$scope" \
     "${extra_args[@]}"
@@ -411,5 +430,5 @@ klms_cleanup_runtime_tmp_if_enabled() {
 
   local max_age_hours="${KLMS_RUNTIME_TMP_MAX_AGE_HOURS:-24}"
   KLMS_RUNTIME_TMP_CLEANUP_TARGET="$TMP_DIR" \
-    /bin/zsh "$SCRIPT_DIR/cleanup_runtime_tmp.sh" --max-age-hours "$max_age_hours" >/dev/null 2>&1 || true
+    /bin/zsh "$KLMS_SH_DIR/cleanup_runtime_tmp.sh" --max-age-hours "$max_age_hours" >/dev/null 2>&1 || true
 }

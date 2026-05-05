@@ -1,7 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+KLMS_SWIFT_DIR="$SCRIPT_DIR/src/swift"
 MODULE_CACHE_DIR="/tmp/klms-swift-module-cache"
 BUILD_DIR="/tmp/klms-notice-native-note-build"
 BIN_PATH="$BUILD_DIR/update_notice_native_note"
@@ -13,8 +14,8 @@ TIMING_LOG="${NOTICE_NATIVE_NOTE_TIMING_LOG:-$SCRIPT_DIR/runtime/cache/notice_na
 DEFAULT_XCODE_SWIFTC="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
 DEFAULT_XCODE_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 SWIFT_SOURCES=(
-  "$SCRIPT_DIR/notice_native_note_support.swift"
-  "$SCRIPT_DIR/update_notice_native_note.swift"
+  "$KLMS_SWIFT_DIR/notice_native_note_support.swift"
+  "$KLMS_SWIFT_DIR/update_notice_native_note.swift"
 )
 
 mkdir -p "$MODULE_CACHE_DIR"

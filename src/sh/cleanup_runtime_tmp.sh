@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP_DIR="${KLMS_RUNTIME_TMP_CLEANUP_TARGET:-$SCRIPT_DIR/runtime/tmp}"
 MAX_AGE_HOURS=""
 

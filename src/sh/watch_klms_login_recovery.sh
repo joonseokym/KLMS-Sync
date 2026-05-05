@@ -4,7 +4,8 @@ set -euo pipefail
 
 PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+KLMS_JS_DIR="$SCRIPT_DIR/src/js"
 CONFIG_PATH="$SCRIPT_DIR/config.env"
 RUNTIME_DIR="$SCRIPT_DIR/runtime"
 AUTOMATION_DIR="$RUNTIME_DIR/automation"
@@ -49,7 +50,7 @@ deadline_epoch="$(( $(date +%s) + LOGIN_WATCH_TIMEOUT_SECONDS ))"
 last_sync_attempt=0
 
 while (( $(date +%s) < deadline_epoch )); do
-  tabs_json="$(cd "$SCRIPT_DIR" && /usr/bin/osascript -l JavaScript ./inspect_klms_tabs.js 2>/dev/null)" || tabs_json='{}'
+  tabs_json="$(cd "$SCRIPT_DIR" && /usr/bin/osascript -l JavaScript "$KLMS_JS_DIR/inspect_klms_tabs.js" 2>/dev/null)" || tabs_json='{}'
   page_status="$(printf '%s' "$tabs_json" | /usr/bin/jq -r '.status // "error"' 2>/dev/null)"
 
   if [[ "$page_status" == "ok" ]]; then
