@@ -2163,7 +2163,7 @@ def parse_dashboard_page(page: dict[str, Any]) -> DashboardParseResult:
             )
         )
 
-    if not items:
+    if not items and not boxes:
         return DashboardParseResult(
             status="error",
             items=[],
