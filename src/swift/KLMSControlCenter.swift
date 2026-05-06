@@ -37,7 +37,11 @@ final class AppModel: ObservableObject {
     var loginURL = "https://klms.kaist.ac.kr/my/"
     var courseFilesRoot = ""
     var termFolder = "auto"
+    var safariWaitSeconds = "4"
+    var fetchMinWaitSeconds = "1.0"
+    var fetchStablePolls = "1"
     var noticeEnabled = false
+    var noticeSplitByCourseEnabled = true
     var remindersEnabled = true
     var examCalendarEnabled = true
     var examCalendarName = "시험"
@@ -205,7 +209,11 @@ final class AppModel: ObservableObject {
       try updateSetting("KLMS_LOGIN_URL", value: settingsDraft.loginURL)
       try updateSetting("FILE_OUTPUT_ROOT", value: settingsDraft.courseFilesRoot)
       try updateSetting("FILE_TERM_FOLDER", value: settingsDraft.termFolder.isEmpty ? "auto" : settingsDraft.termFolder)
+      try updateSetting("SAFARI_WAIT_SECONDS", value: settingsDraft.safariWaitSeconds)
+      try updateSetting("FETCH_MIN_WAIT_SECONDS", value: settingsDraft.fetchMinWaitSeconds)
+      try updateSetting("FETCH_STABLE_POLLS", value: settingsDraft.fetchStablePolls)
       try updateSetting("NOTICE_SUMMARY_ENABLED", value: settingsDraft.noticeEnabled ? "1" : "0")
+      try updateSetting("NOTICE_SPLIT_BY_COURSE_ENABLED", value: settingsDraft.noticeSplitByCourseEnabled ? "1" : "0")
       try updateSetting("REMINDERS_SYNC_ENABLED", value: settingsDraft.remindersEnabled ? "1" : "0")
       try updateSetting("EXAM_CALENDAR_SYNC_ENABLED", value: settingsDraft.examCalendarEnabled ? "1" : "0")
       try updateSetting("EXAM_CALENDAR_NAME", value: settingsDraft.examCalendarName)
@@ -591,7 +599,11 @@ final class AppModel: ObservableObject {
       loginURL: readSetting("KLMS_LOGIN_URL") ?? "https://klms.kaist.ac.kr/my/",
       courseFilesRoot: readSetting("FILE_OUTPUT_ROOT") ?? projectRoot.appendingPathComponent("course_files").path,
       termFolder: readSetting("FILE_TERM_FOLDER") ?? "auto",
+      safariWaitSeconds: readSetting("SAFARI_WAIT_SECONDS") ?? "4",
+      fetchMinWaitSeconds: readSetting("FETCH_MIN_WAIT_SECONDS") ?? "1.0",
+      fetchStablePolls: readSetting("FETCH_STABLE_POLLS") ?? "1",
       noticeEnabled: readSetting("NOTICE_SUMMARY_ENABLED") == "1",
+      noticeSplitByCourseEnabled: readSetting("NOTICE_SPLIT_BY_COURSE_ENABLED") != "0",
       remindersEnabled: readSetting("REMINDERS_SYNC_ENABLED") != "0",
       examCalendarEnabled: readSetting("EXAM_CALENDAR_SYNC_ENABLED") != "0",
       examCalendarName: readSetting("EXAM_CALENDAR_NAME") ?? "시험",
@@ -1253,6 +1265,7 @@ struct SettingsSheetView: View {
 
           SettingsGroup(title: "동기화") {
             Toggle("공지 정리 사용", isOn: $model.settingsDraft.noticeEnabled)
+            Toggle("공지 메모를 학기/과목별로 나누기", isOn: $model.settingsDraft.noticeSplitByCourseEnabled)
             Toggle("Reminders 동기화", isOn: $model.settingsDraft.remindersEnabled)
             Toggle("시험 Calendar 동기화", isOn: $model.settingsDraft.examCalendarEnabled)
             SettingsTextField(title: "시험 캘린더", text: $model.settingsDraft.examCalendarName)
@@ -1262,6 +1275,15 @@ struct SettingsSheetView: View {
 
           SettingsGroup(title: "로그인") {
             Toggle("Kaikey 자동 로그인", isOn: $model.settingsDraft.autoLoginEnabled)
+          }
+
+          SettingsGroup(title: "속도") {
+            SettingsTextField(title: "Safari 최대 대기 시간(초)", text: $model.settingsDraft.safariWaitSeconds)
+            SettingsTextField(title: "최소 안정화 대기(초)", text: $model.settingsDraft.fetchMinWaitSeconds)
+            SettingsTextField(title: "안정화 확인 횟수", text: $model.settingsDraft.fetchStablePolls)
+            Text("낮을수록 빨라지지만 KLMS 페이지가 느린 날에는 일부 페이지를 다시 시도할 수 있습니다.")
+              .font(.system(size: 12))
+              .foregroundStyle(.secondary)
           }
         }
         .padding(.vertical, 4)

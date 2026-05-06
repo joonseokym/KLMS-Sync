@@ -292,6 +292,8 @@ function run(argv) {
     const noticeNoteRenderWarningTxt = `${cacheDir}/notice_note_render_warning.txt`;
 	    const noticeNoteName = config.NOTICE_NOTE_NAME || "KLMS 공지";
 	    const noticeArchiveNoteName = config.NOTICE_ARCHIVE_NOTE_NAME || "KLMS 확인한 공지";
+    const noticeSplitByCourseEnabled = config.NOTICE_SPLIT_BY_COURSE_ENABLED !== "0";
+    const noticeTermFolder = resolveTermFolder(config.FILE_TERM_FOLDER || "auto");
 	    const sharedCoursePagesJson =
 	      envValue("KLMS_SHARED_COURSE_PAGES_JSON") || `${cacheDir}/core/course_pages.json`;
 	    const sharedAllWeekCoursePagesJson =
@@ -338,6 +340,8 @@ function run(argv) {
       noticeNoteRenderWarningTxt,
       noticeNoteName,
       noticeArchiveNoteName,
+      noticeSplitByCourseEnabled,
+      noticeTermFolder,
       noticeNativeStableNoopSkipEnabled,
       noticeNativeAlwaysCaptureStateEnabled,
       syncFullTtlSeconds,
@@ -1476,7 +1480,11 @@ function syncNoticeSummary(scriptDir, waitSeconds, baseFetchOptions, paths, stag
         paths.noticeArchiveNoteRenderStateJson,
         paths.noticeNativeStableNoopSkipEnabled,
         paths.noticeNativeAlwaysCaptureStateEnabled,
-        stageTelemetry
+        stageTelemetry,
+        {
+          splitByCourse: paths.noticeSplitByCourseEnabled !== false,
+          termFolder: paths.noticeTermFolder || resolveTermFolder("auto"),
+        }
       )
   );
   if ((renderResult.renderWarnings || []).length > 0) {
@@ -1501,8 +1509,23 @@ function updateNoticeNativeNote(
   archiveNoticeRenderStateJsonPath,
   stableNoopSkipEnabled,
   alwaysCaptureStateEnabled,
-  stageTelemetry
+  stageTelemetry,
+  options
 ) {
+  if (options && options.splitByCourse) {
+    return updateNoticeNativeNotesByCourse(
+      scriptDir,
+      options.termFolder || resolveTermFolder("auto"),
+      noticeDigestJsonPath,
+      noticeUserStateJsonPath,
+      noticeRenderStateJsonPath,
+      archiveNoticeRenderStateJsonPath,
+      stableNoopSkipEnabled,
+      alwaysCaptureStateEnabled,
+      stageTelemetry
+    );
+  }
+
   if (stableNoopSkipEnabled !== false && alwaysCaptureStateEnabled === false) {
     const stableSkip = maybeSkipStableNoticeNativeUpdate(
       noticeDigestJsonPath,
@@ -1640,6 +1663,76 @@ function updateNoticeNativeNote(
   });
 
   return { results, renderWarnings };
+}
+
+function updateNoticeNativeNotesByCourse(
+  scriptDir,
+  termFolder,
+  noticeDigestJsonPath,
+  noticeUserStateJsonPath,
+  noticeRenderStateJsonPath,
+  archiveNoticeRenderStateJsonPath,
+  stableNoopSkipEnabled,
+  alwaysCaptureStateEnabled,
+  stageTelemetry
+) {
+  const digest = JSON.parse(readText(noticeDigestJsonPath));
+  const courses = Array.isArray(digest.courses) ? digest.courses : [];
+  const digestDir = parentDirectory(noticeDigestJsonPath);
+  const splitDir = `${digestDir}/notice_course_digests`;
+  ensureDir(splitDir);
+
+  const aggregate = { results: [], renderWarnings: [] };
+  courses
+    .filter((course) => Array.isArray(course.notices) && course.notices.length > 0)
+    .forEach((course) => {
+      const courseName = String(course.course || "미분류").trim() || "미분류";
+      const slug = safeFileSlug(`${termFolder}-${courseName}`);
+      const courseDigestPath = `${splitDir}/${slug}.json`;
+      const primaryStatePath = withPathSuffix(noticeRenderStateJsonPath, slug);
+      const archiveStatePath = withPathSuffix(archiveNoticeRenderStateJsonPath, slug);
+      const courseDigest = {
+        ...digest,
+        notice_count: course.notices.length,
+        new_count: course.notices.filter((notice) => String(notice.change_state || "") === "new").length,
+        updated_count: course.notices.filter((notice) => String(notice.change_state || "") === "updated").length,
+        courses: [course],
+      };
+      writeText(courseDigestPath, `${JSON.stringify(courseDigest, null, 2)}\n`);
+
+      const noteTitle = `${termFolder}/${courseName}`;
+      const archiveTitle = `${termFolder}/${courseName} 확인한 공지`;
+      const result = updateNoticeNativeNote(
+        scriptDir,
+        noteTitle,
+        archiveTitle,
+        courseDigestPath,
+        noticeUserStateJsonPath,
+        primaryStatePath,
+        archiveStatePath,
+        stableNoopSkipEnabled,
+        alwaysCaptureStateEnabled,
+        stageTelemetry,
+        { splitByCourse: false }
+      );
+      aggregate.results.push(
+        ...(result.results || []).map((item) => ({
+          ...item,
+          course: courseName,
+          note_title: noteTitle,
+        }))
+      );
+      aggregate.renderWarnings.push(...(result.renderWarnings || []));
+    });
+
+  if (aggregate.results.length === 0) {
+    aggregate.results.push({
+      target: "course-notice-notes",
+      status: "skipped",
+      output: "No course notices to render.",
+    });
+  }
+  return aggregate;
 }
 
 function maybeSkipStableNoticeNativeUpdate(
@@ -2989,6 +3082,42 @@ function freshExistingFilesSince(paths, startedEpoch) {
 
 function parentDirectory(path) {
   return ObjC.unwrap($(path).stringByDeletingLastPathComponent);
+}
+
+function withPathSuffix(path, suffix) {
+  const directory = parentDirectory(path);
+  const filename = ObjC.unwrap($(path).lastPathComponent);
+  const dotIndex = filename.lastIndexOf(".");
+  const stem = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+  const extension = dotIndex > 0 ? filename.slice(dotIndex) : "";
+  return `${directory}/${stem}-${safeFileSlug(suffix)}${extension}`;
+}
+
+function safeFileSlug(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\\/:*?"<>|\n\r\t]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^-+|-+$/g, "") || "untitled";
+}
+
+function resolveTermFolder(value) {
+  const raw = String(value || "").trim();
+  if (raw && !["auto", "default"].includes(raw.toLowerCase())) {
+    return safeFileSlug(raw);
+  }
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 3600 * 1000);
+  const year = kst.getUTCFullYear();
+  const month = kst.getUTCMonth() + 1;
+  if (month >= 9) {
+    return `${String(year % 100).padStart(2, "0")}F`;
+  }
+  if (month <= 2) {
+    return `${String((year - 1) % 100).padStart(2, "0")}F`;
+  }
+  return `${String(year % 100).padStart(2, "0")}S`;
 }
 
 function readText(path) {

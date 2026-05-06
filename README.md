@@ -27,7 +27,7 @@ KAIST KLMS를 Safari 로그인 세션으로 읽어 과제, 시험 일정, 공지
 | --- | --- | --- |
 | `한 번에 정리` | 과제/시험/리마인더/캘린더를 정리하고, 공지 정리가 켜져 있으면 공지도 갱신한다. 평소 기본 버튼이다. | `run_all.sh` |
 | `일정 정리` | KLMS 과제와 시험 후보를 읽고, Apple Reminders와 Calendar를 갱신한다. 첨부파일은 받지 않는다. | `sync_klms_core.sh` |
-| `공지 정리` | KLMS Notice 게시판을 읽어 `KLMS 공지`, `KLMS 확인한 공지` Notes 메모를 갱신한다. 설정에서 공지 정리가 꺼져 있으면 건너뛴다. | `sync_klms_notice.sh` |
+| `공지 정리` | KLMS Notice 게시판을 읽어 Notes 메모를 갱신한다. 기본값은 `26S/과목명`, `26S/과목명 확인한 공지`처럼 학기/과목별로 나누어 만든다. 설정에서 공지 정리가 꺼져 있으면 건너뛴다. | `sync_klms_notice.sh` |
 | `파일 모으기` | KLMS 첨부파일 manifest를 만들고 파일을 내려받아 학기/과목별 폴더에 정리한다. | `refresh_course_files.sh` |
 | `전체 동기화` | 일정 정리, 공지 정리, 파일 모으기를 순서대로 모두 실행한다. 시간이 가장 오래 걸린다. | `run_all_full.sh` |
 | `점검` | 현재 state, 공지 산출물, 파일 manifest, Calendar 개수를 확인한다. 없는 산출물은 실패가 아니라 `skipped` 또는 `missing`으로 표시한다. | `verify_sync_state.sh` |
@@ -82,6 +82,29 @@ course_files/
 
 파일명은 가능하면 KLMS가 실제로 내려준 원본 파일명을 유지한다. 같은 과목 폴더 안에 같은 이름이 있으면 `파일명 (2).pdf`처럼 중복을 피한다.
 
+## 공지 메모 구조
+
+공지 정리는 기본적으로 과목별 Notes 메모를 만든다.
+
+```text
+26S/기계공학실습특강
+26S/기계공학실습특강 확인한 공지
+26S/로봇공학개론
+26S/로봇공학개론 확인한 공지
+```
+
+각 과목의 메인 메모에는 중요 공지, 새로운 공지, 읽지 않은 공지가 들어가고, `읽음` 체크된 일반 공지는 같은 과목의 `확인한 공지` 메모로 이동한다. 이 동작은 앱 설정의 `공지 메모를 학기/과목별로 나누기`에서 끌 수 있다.
+
+## 속도 조절
+
+이 도구는 Safari 안에서 실제 KLMS 페이지를 열고 읽기 때문에 완전한 API 방식보다 느릴 수 있다. 대신 기본값을 빠른 쪽으로 조정했다.
+
+- `SAFARI_WAIT_SECONDS=4`: 페이지당 최대 대기 시간
+- `FETCH_MIN_WAIT_SECONDS=1.0`: DOM 안정화 전 최소 대기 시간
+- `FETCH_STABLE_POLLS=1`: 페이지가 안정화됐다고 판단하는 확인 횟수
+
+앱의 `설정 > 속도`에서 이 값을 바꿀 수 있다. 더 빠르게 하고 싶으면 `Safari 최대 대기 시간`을 `3`, `최소 안정화 대기`를 `0.8` 정도로 낮출 수 있다. KLMS가 느리거나 페이지가 덜 읽히면 다시 `4 / 1.0 / 1` 또는 더 보수적인 값으로 올리면 된다.
+
 ## 추천 사용 흐름
 
 ### 평소
@@ -111,7 +134,11 @@ course_files/
 | KLMS 로그인 URL | `KLMS_LOGIN_URL` |
 | 파일 저장 폴더 | `FILE_OUTPUT_ROOT` |
 | 학기 폴더 | `FILE_TERM_FOLDER` |
+| Safari 최대 대기 시간 | `SAFARI_WAIT_SECONDS` |
+| 최소 안정화 대기 | `FETCH_MIN_WAIT_SECONDS` |
+| 안정화 확인 횟수 | `FETCH_STABLE_POLLS` |
 | 공지 정리 사용 | `NOTICE_SUMMARY_ENABLED` |
+| 공지 메모 과목별 분리 | `NOTICE_SPLIT_BY_COURSE_ENABLED` |
 | Reminders 동기화 | `REMINDERS_SYNC_ENABLED` |
 | 시험 Calendar 동기화 | `EXAM_CALENDAR_SYNC_ENABLED` |
 | 시험 캘린더 이름 | `EXAM_CALENDAR_NAME` |
