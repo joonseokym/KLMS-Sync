@@ -235,14 +235,13 @@ func syncStandardCalendar(
         let event = EKEvent(eventStore: store)
         event.calendar = calendar
         event.title = desired.title
-        event.startDate =
-            desired.startDate
-            ?? resolvedStartDate(
-                existingStart: nil,
-                existingCreationDate: nil,
-                dueDate: desired.dueDate,
-                minimumSpanMinutes: minimumSpanMinutes
-            )
+        event.startDate = resolvedDesiredStartDate(
+            explicitStart: desired.startDate,
+            existingStart: nil,
+            existingCreationDate: nil,
+            dueDate: desired.dueDate,
+            minimumSpanMinutes: minimumSpanMinutes
+        )
         event.endDate = desired.dueDate
         event.location = desired.location
         event.notes = desired.notes
@@ -668,14 +667,13 @@ func applyStandardEventIfNeeded(
     minimumSpanMinutes: Int
 ) -> Bool {
     var changed = false
-    let desiredStartDate =
-        desired.startDate
-        ?? resolvedStartDate(
-            existingStart: event.startDate,
-            existingCreationDate: event.creationDate,
-            dueDate: desired.dueDate,
-            minimumSpanMinutes: minimumSpanMinutes
-        )
+    let desiredStartDate = resolvedDesiredStartDate(
+        explicitStart: desired.startDate,
+        existingStart: event.startDate,
+        existingCreationDate: event.creationDate,
+        dueDate: desired.dueDate,
+        minimumSpanMinutes: minimumSpanMinutes
+    )
 
     if event.title != desired.title {
         event.title = desired.title
@@ -732,7 +730,7 @@ func resolvedStartDate(
     minimumSpanMinutes: Int
 ) -> Date {
     let minimumSpan = TimeInterval(max(minimumSpanMinutes, 1) * 60)
-    let fallbackStart = max(Date(), dueDate.addingTimeInterval(-minimumSpan))
+    let fallbackStart = dueDate.addingTimeInterval(-minimumSpan)
 
     guard let existingStart else {
         return fallbackStart
@@ -749,6 +747,25 @@ func resolvedStartDate(
     }
 
     return fallbackStart
+}
+
+func resolvedDesiredStartDate(
+    explicitStart: Date?,
+    existingStart: Date?,
+    existingCreationDate: Date?,
+    dueDate: Date,
+    minimumSpanMinutes: Int
+) -> Date {
+    if let explicitStart, explicitStart < dueDate {
+        return explicitStart
+    }
+
+    return resolvedStartDate(
+        existingStart: existingStart,
+        existingCreationDate: existingCreationDate,
+        dueDate: dueDate,
+        minimumSpanMinutes: minimumSpanMinutes
+    )
 }
 
 func sameRelativeAlarms(lhs: [EKAlarm], rhs: [EKAlarm]) -> Bool {

@@ -1897,7 +1897,8 @@ function syncCalendarsFromState(stateJsonPath, scriptDir, config, calendarOption
       const message = String((error && error.message) || error || "");
       if (
         config.CALENDAR_SYNC_APPLESCRIPT_FALLBACK === "0" ||
-        !message.includes("Xcode license agreements")
+        (!message.includes("Xcode license agreements") &&
+          !message.includes("Calendar access was not granted"))
       ) {
         throw error;
       }

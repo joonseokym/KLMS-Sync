@@ -89,6 +89,7 @@ def main() -> int:
         course_pages_json=Path(args.course_pages_json),
         page_sets=[Path(path) for path in args.pages_json],
         output_root=Path(args.output_root),
+        term_folder=args.term_folder,
         previous_state=previous_state,
     )
 
@@ -113,6 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--course-pages-json", required=True)
     parser.add_argument("--pages-json", action="append", required=True)
     parser.add_argument("--output-root", required=True)
+    parser.add_argument("--term-folder", default="auto")
     parser.add_argument("--output-json", required=True)
     parser.add_argument("--output-markdown")
     parser.add_argument("--manifest-state-json")
@@ -124,6 +126,7 @@ def build_manifest(
     course_pages_json: Path,
     page_sets: list[Path],
     output_root: Path,
+    term_folder: str = "auto",
     previous_state: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     course_pages = load_pages(course_pages_json)
@@ -144,6 +147,7 @@ def build_manifest(
         if isinstance(previous_state, dict) and isinstance(previous_state.get("sources"), dict)
         else {}
     )
+    term_dir = resolve_term_folder(term_folder)
 
     activity_lookup = build_activity_lookup(prepared_course_pages + prepared_pages)
     manifest: list[dict[str, Any]] = []
@@ -171,12 +175,14 @@ def build_manifest(
             previous_source_state,
             page_signature,
             current_courses,
-            output_root,
-        )
+                output_root,
+                term_dir,
+            )
         if page_entries is None or entries_conflict(page_entries, seen_urls, seen_paths):
             page_entries = build_manifest_entries_for_page(
                 parsed_page,
                 output_root,
+                term_dir,
                 activity_lookup,
                 current_courses,
                 seen_urls,
@@ -246,6 +252,7 @@ def reusable_manifest_entries(
     page_signature: str,
     current_courses: dict[str, Any],
     output_root: Path,
+    term_dir: str,
 ) -> list[dict[str, Any]] | None:
     if str(previous_source_state.get("page_signature", "")) != page_signature:
         return None
@@ -271,10 +278,11 @@ def reusable_manifest_entries(
         reusable.append(
             {
                 "course": course,
+                "term": term_dir,
                 "bucket": bucket,
                 "filename": str(item.get("filename", "")),
-                "relative_path": relative_path,
-                "absolute_path": str(output_root / relative_path),
+                "relative_path": relocate_relative_path(relative_path, course, term_dir),
+                "absolute_path": str(output_root / relocate_relative_path(relative_path, course, term_dir)),
                 "url": url,
                 "source_url": str(item.get("source_url", "")),
                 "source_title": str(item.get("source_title", "")),
@@ -317,6 +325,7 @@ def register_entries(entries: list[dict[str, Any]], seen_urls: set[str], seen_pa
 def build_manifest_entries_for_page(
     parsed_page: ParsedPage,
     output_root: Path,
+    term_dir: str,
     activity_lookup: dict[str, dict[str, str]],
     current_courses: dict[str, Any],
     seen_urls: set[str],
@@ -353,13 +362,10 @@ def build_manifest_entries_for_page(
             continue
 
         course_dir = sanitize_path_component(course)
-        bucket_dir = sanitize_path_component(bucket)
-        source_dir = sanitize_path_component(source_title or "untitled")
         relative_path = make_unique_relative_path(
             seen_paths,
+            term_dir,
             course_dir,
-            bucket_dir,
-            source_dir,
             filename,
         )
         timestamp_metadata = resolve_klms_timestamp_metadata(
@@ -371,6 +377,7 @@ def build_manifest_entries_for_page(
 
         entry = {
             "course": course,
+            "term": term_dir,
             "bucket": bucket,
             "filename": filename,
             "relative_path": relative_path,
@@ -783,9 +790,8 @@ def determine_bucket(source_url: str) -> str:
 
 def make_unique_relative_path(
     seen_paths: set[str],
+    term_dir: str,
     course_dir: str,
-    bucket_dir: str,
-    source_dir: str,
     filename: str,
 ) -> str:
     filename_path = Path(filename)
@@ -795,11 +801,41 @@ def make_unique_relative_path(
 
     while True:
         candidate_name = f"{stem}{suffix}" if counter == 1 else f"{stem} ({counter}){suffix}"
-        relative_path = str(Path(course_dir) / bucket_dir / source_dir / candidate_name)
+        relative_path = str(Path(term_dir) / course_dir / candidate_name)
         if relative_path not in seen_paths:
             seen_paths.add(relative_path)
             return relative_path
         counter += 1
+
+
+def resolve_term_folder(value: str | None) -> str:
+    raw = normalize_whitespace(value or "")
+    if raw and raw.lower() not in {"auto", "default"}:
+        return sanitize_path_component(raw)
+
+    now = datetime.now(SEOUL)
+    if now.month >= 9:
+        year = now.year % 100
+        suffix = "F"
+    elif now.month <= 2:
+        year = (now.year - 1) % 100
+        suffix = "F"
+    else:
+        year = now.year % 100
+        suffix = "S"
+    return f"{year:02d}{suffix}"
+
+
+def relocate_relative_path(relative_path: str, course: str, term_dir: str) -> str:
+    path = PurePosixPath(relative_path)
+    filename = path.name
+    course_dir = sanitize_path_component(course)
+    if not filename:
+        return str(PurePosixPath(term_dir) / course_dir)
+    parts = path.parts
+    if len(parts) >= 3 and parts[0] == term_dir and parts[1] == course_dir:
+        return relative_path
+    return str(PurePosixPath(term_dir) / course_dir / filename)
 
 
 def render_markdown(manifest: list[dict[str, Any]]) -> str:

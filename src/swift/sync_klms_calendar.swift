@@ -196,14 +196,13 @@ for desired in desiredEvents where !existingIDs.contains(desired.identifier) {
     let event = EKEvent(eventStore: store)
     event.calendar = calendar
     event.title = desired.title
-    event.startDate =
-        desired.startDate
-        ?? resolvedStartDate(
-            existingStart: nil,
-            existingCreationDate: nil,
-            dueDate: desired.dueDate,
-            minimumSpanMinutes: minimumSpanMinutes
-        )
+    event.startDate = resolvedDesiredStartDate(
+        explicitStart: desired.startDate,
+        existingStart: nil,
+        existingCreationDate: nil,
+        dueDate: desired.dueDate,
+        minimumSpanMinutes: minimumSpanMinutes
+    )
     event.endDate = desired.dueDate
     event.notes = desired.notes
     event.timeZone = TimeZone(identifier: "Asia/Seoul")
@@ -593,14 +592,13 @@ func extractIdentifier(from notes: String?) -> String? {
 
 func applyIfNeeded(event: EKEvent, desired: DesiredEvent, minimumSpanMinutes: Int) -> Bool {
     var changed = false
-    let desiredStartDate =
-        desired.startDate
-        ?? resolvedStartDate(
-            existingStart: event.startDate,
-            existingCreationDate: event.creationDate,
-            dueDate: desired.dueDate,
-            minimumSpanMinutes: minimumSpanMinutes
-        )
+    let desiredStartDate = resolvedDesiredStartDate(
+        explicitStart: desired.startDate,
+        existingStart: event.startDate,
+        existingCreationDate: event.creationDate,
+        dueDate: desired.dueDate,
+        minimumSpanMinutes: minimumSpanMinutes
+    )
 
     if event.title != desired.title {
         event.title = desired.title
@@ -648,7 +646,7 @@ func buildAlarms(dueDate: Date) -> [EKAlarm] {
 
 func resolvedStartDate(existingStart: Date?, existingCreationDate: Date?, dueDate: Date, minimumSpanMinutes: Int) -> Date {
     let minimumSpan = TimeInterval(max(minimumSpanMinutes, 1) * 60)
-    let fallbackStart = max(Date(), dueDate.addingTimeInterval(-minimumSpan))
+    let fallbackStart = dueDate.addingTimeInterval(-minimumSpan)
 
     guard let existingStart else {
         return fallbackStart
@@ -666,6 +664,25 @@ func resolvedStartDate(existingStart: Date?, existingCreationDate: Date?, dueDat
     }
 
     return fallbackStart
+}
+
+func resolvedDesiredStartDate(
+    explicitStart: Date?,
+    existingStart: Date?,
+    existingCreationDate: Date?,
+    dueDate: Date,
+    minimumSpanMinutes: Int
+) -> Date {
+    if let explicitStart, explicitStart < dueDate {
+        return explicitStart
+    }
+
+    return resolvedStartDate(
+        existingStart: existingStart,
+        existingCreationDate: existingCreationDate,
+        dueDate: dueDate,
+        minimumSpanMinutes: minimumSpanMinutes
+    )
 }
 
 func sameAlarms(lhs: [EKAlarm], rhs: [EKAlarm]) -> Bool {

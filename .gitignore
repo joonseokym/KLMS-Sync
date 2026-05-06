@@ -40,6 +40,8 @@ yarn-error.log*
 .build/
 DerivedData/
 *.dSYM/
+KLMS Sync.app
+KLMS Sync.app/
 
 # Logs and temporary files
 *.log
